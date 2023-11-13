@@ -76,7 +76,7 @@ void DrawOverworld(void) {
 	}
 
 	//memset(gCanvas.Memory, 0, GAME_CANVAS_MEMORY_SIZE);
-	BlitTilemapToBuffer(&gOverworld01);
+	BlitTilemapToBuffer(&gOverworld01.gamebitmap);
 	Blit32BppBitmapToBuffer(&gPlayer.Sprite[gPlayer.CurrentArmor][gPlayer.SpriteIndex + gPlayer.Direction], gPlayer.ScreenPos.x, gPlayer.ScreenPos.y);
 
 	LocalFrameCounter++;

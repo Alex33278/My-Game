@@ -95,6 +95,7 @@ typedef enum GAME_STATE {
 #pragma warning(disable: 4061) // Not explicitly handled by a case label
 #pragma warning(disable: 6326) // Comparison of constant with constant
 #pragma warning(disable: 6340) // sprintf_s require some signed type
+#pragma warning(disable: 4133) // incompadible types (Pixel32 -> __m256i)
 
 typedef LONG(NTAPI* _NtQueryTimerResolution) (OUT PULONG MinimumResolution, OUT PULONG MaximumResolution, OUT PULONG CurrentResolution);
 _NtQueryTimerResolution NtQueryTimerResolution;
@@ -162,6 +163,11 @@ typedef struct TILEMAP {
 	uint8_t** map;
 
 } TILEMAP;
+
+typedef struct GAMEMAP {
+	TILEMAP tilemap;
+	GAME_BITMAP gamebitmap;
+} GAMEMAP;
 
 typedef struct HERO {
 	char Name[9];
@@ -239,7 +245,8 @@ int8_t gGamepadID;
 HWND gWHandle;
 IXAudio2SourceVoice* gXAudioMusicSourceVoice;
 IXAudio2SourceVoice* gXAudioSFXSourceVoice[NUMBER_SFX_SOURCE_VOICES];
-GAME_BITMAP gOverworld01;
+GAMEMAP gOverworld01;
+//GAME_BITMAP gOverworld01;
 
 float gSFXVolume;
 float gMusicVolume;
@@ -270,4 +277,4 @@ void DrawDebugInfo(void);
 	void ClearScreen(_In_ PIXEL32* Pixel);
 #endif
 
-DWORD LoadTilemap(_In_ char FileName, _Inout_ TILEMAP* TileMap);
+DWORD LoadTilemapFromFile(_In_ char* FileName, _Inout_ TILEMAP* TileMap);

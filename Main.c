@@ -86,7 +86,7 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PrevInstance, 
 		LogMessageA(LL_INFO, "[%s] CPU architecture: x64", __FUNCTION__);
 		break;
 	case 4UL:
-		LogMessageA(LL_INFO, "[%s] CPU architecture: x32", __FUNCTION__);
+		LogMessageA(LL_INFO, "[%s] CPU architecture: x86", __FUNCTION__);
 		break;
 	default:
 		LogMessageA(LL_INFO, "[%s] CPU architecture: NOT DEFINED", __FUNCTION__);
@@ -131,13 +131,20 @@ int __stdcall WinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PrevInstance, 
 		goto Exit;
 	}
 
-	if (Load32BppBitmapFromFile("..\\..\\Assets\\Maps\\Overworld01.bmpx", &gOverworld01) != ERROR_SUCCESS) {
+	if (Load32BppBitmapFromFile("..\\..\\Assets\\Maps\\Overworld01.bmpx", &gOverworld01.gamebitmap) != ERROR_SUCCESS) {
 		LogMessageA(LL_ERROR, "[%s] Failed to load overworld map", __FUNCTION__);
 		MessageBoxA(NULL, "Failed loading overworld map. File name: Overworld01.bmpx", "Error", MB_ICONERROR | MB_OK);
+		goto Exit;
+	}
+
+	if ((LoadTilemapFromFile("..\\..\\Assets\\Maps\\Overworld01.tmx", &gOverworld01.tilemap)) != ERROR_SUCCESS) {
+		LogMessageA(LL_ERROR, "[%s] Failed to load overworld map", __FUNCTION__);
+		MessageBoxA(NULL, "Failed loading overworld map. File name: Overworld01.tmx", "Error", MB_ICONERROR | MB_OK);
+		goto Exit;
 	}
 
 	if (InitalizeSoundEngine() != S_OK) {
-		MessageBoxA(NULL, "InitalizeSoundEngine() failed be- *Cuts*", "Error", MB_ICONERROR | MB_OK);
+		MessageBoxA(NULL, "InitalizeSoundEngine() failed to initalize.", "Error", MB_ICONERROR | MB_OK);
 		goto Exit;
 	}
 
@@ -760,7 +767,7 @@ void BlitTilemapToBuffer(_In_ GAME_BITMAP* GameBitmap) {
 		for (int16_t XPixel = 0; XPixel < GAME_RES_WIDTH; XPixel += 8) {
 			MemoryOffset = StartingScreenPixel + XPixel - (GAME_RES_WIDTH * YPixel);
 			BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->bitmapInfo.bmiHeader.biWidth * YPixel);
-			BitmapOctoPixel = _mm256_loadu_si256((PIXEL32*)gOverworld01.Memory + BitmapOffset);
+			BitmapOctoPixel = _mm256_loadu_si256((PIXEL32*)GameBitmap->Memory + BitmapOffset);
 
 			_mm256_store_si256((PIXEL32*)gCanvas.Memory + MemoryOffset, BitmapOctoPixel);
 		}
@@ -772,7 +779,7 @@ void BlitTilemapToBuffer(_In_ GAME_BITMAP* GameBitmap) {
 		for (int16_t XPixel = 0; XPixel < GAME_RES_WIDTH; XPixel += 4) {
 			MemoryOffset = StartingScreenPixel + XPixel - (GAME_RES_WIDTH * YPixel);
 			BitmapOffset = StartingBitmapPixel + XPixel - (GameBitmap->bitmapInfo.bmiHeader.biWidth * YPixel);
-			BitmapQuadPixel = _mm_load_si128((PIXEL32*)gOverworld01.Memory + BitmapOffset);
+			BitmapQuadPixel = _mm_load_si128((PIXEL32*)GameBitmap->Memory + BitmapOffset);
 
 			_mm_store_si128((PIXEL32*)gCanvas.Memory + MemoryOffset, BitmapQuadPixel);
 		}
@@ -1248,9 +1255,167 @@ __forceinline void ClearScreen(_In_ PIXEL32* Pixel) {
 }
 #endif
 
-DWORD LoadTilemap(_In_ char FileName, _Inout_ TILEMAP* TileMap) {
-	DWORD Result = ERROR_SUCCESS;
+DWORD LoadTilemapFromFile(_In_ char* FileName, _Inout_ TILEMAP* TileMap) {
+	DWORD Error = ERROR_SUCCESS;
+	LARGE_INTEGER FileSize = { 0 };
+	HANDLE FileHandle = INVALID_HANDLE_VALUE;
+	DWORD NumBytesRead = 0;
+	void* FileBuffer = NULL;
+	char* Cursor = NULL;
+	char TempBuffer[16] = { 0 };
+
+	if ((FileHandle = CreateFileA(FileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL)) == INVALID_HANDLE_VALUE) {
+		Error = GetLastError();
+		LogMessageA(LL_ERROR, "[%s] CreateFileA() failed with 0x%08lx", __FUNCTION__, Error);
+		goto Exit;
+	}
+
+	if (GetFileSizeEx(FileHandle, &FileSize) == 0) {
+		Error = GetLastError();
+		LogMessageA(LL_ERROR, "[%s] GetFileSizeEx() failed with 0x%08lx", __FUNCTION__, Error);
+		goto Exit;
+	}
+
+	LogMessageA(LL_INFO, "[%s] Size of file %s: %lu", __FUNCTION__, FileName, FileSize.QuadPart);
+
+	FileBuffer = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, FileSize.QuadPart);
+
+	if (FileBuffer == NULL) {
+		Error = ERROR_OUTOFMEMORY;
+		LogMessageA(LL_ERROR, "[%s] HeapAlloc() failed with 0x%08lx", __FUNCTION__, Error);
+		goto Exit;
+	}
+
+	if (ReadFile(FileHandle, FileBuffer, (DWORD)FileSize.QuadPart, &NumBytesRead, NULL) == 0) {
+		Error = GetLastError();
+		LogMessageA(LL_ERROR, "[%s] ReadFile() failed with 0x%08lx", __FUNCTION__, Error);
+		goto Exit;
+	}
+
+	if ((Cursor = strstr(FileBuffer, "width=")) == NULL) {
+		Error = ERROR_INVALID_DATA;
+		LogMessageA(LL_ERROR, "[%s] strstr() failed with 0x%08lx", __FUNCTION__, Error);
+		goto Exit;
+	}
+
+	NumBytesRead = 0;
+
+	for (;;) {
+		if (NumBytesRead > 8) {
+			Error = ERROR_INVALID_DATA;
+			LogMessageA(LL_ERROR, "[%s] Could not locate opening quote before width attribute: 0x%08lx", __FUNCTION__, Error);
+			goto Exit;
+		}
+
+		if (*Cursor == '\"') {
+			Cursor++;
+			break;
+		}
+		else {
+			Cursor++;
+		}
+
+		NumBytesRead++;
+	}
+
+	NumBytesRead = 0;
+
+	for (uint8_t Counter = 0; Counter < 6; Counter++) {
+		if (*Cursor == '\"') {
+			Cursor++;
+			break;
+		}
+		else {
+			TempBuffer[Counter] = *Cursor;
+			Cursor++;
+		}
+	}
+
+	TileMap->width = (uint16_t)atoi(TempBuffer);
+
+	if (TileMap->width == 0) {
+		Error = ERROR_INVALID_DATA;
+		LogMessageA(LL_ERROR, "[%s] TileMap width is 0: 0x%08lx", __FUNCTION__, Error);
+		goto Exit;
+	}
+
+	memset(TempBuffer, 0, sizeof(TempBuffer));
+
+	if ((Cursor = strstr(FileBuffer, "height=")) == NULL) {
+		Error = ERROR_INVALID_DATA;
+		LogMessageA(LL_ERROR, "[%s] strstr() failed with 0x%08lx", __FUNCTION__, Error);
+		goto Exit;
+	}
+
+	NumBytesRead = 0;
+
+	for (;;) {
+		if (NumBytesRead > 8) {
+			Error = ERROR_INVALID_DATA;
+			LogMessageA(LL_ERROR, "[%s] Could not locate opening quote before height attribute: 0x%08lx", __FUNCTION__, Error);
+			goto Exit;
+		}
+
+		if (*Cursor == '\"') {
+			Cursor++;
+			break;
+		}
+		else {
+			Cursor++;
+		}
+
+		NumBytesRead++;
+	}
+
+	NumBytesRead = 0;
+
+	for (uint8_t Counter = 0; Counter < 6; Counter++) {
+		if (*Cursor == '\"') {
+			Cursor++;
+			break;
+		}
+		else {
+			TempBuffer[Counter] = *Cursor;
+			Cursor++;
+		}
+	}
+
+	TileMap->height = (uint16_t)atoi(TempBuffer);
+
+	if (TileMap->height == 0) {
+		Error = ERROR_INVALID_DATA;
+		LogMessageA(LL_ERROR, "[%s] TileMap height is 0: 0x%08lx", __FUNCTION__, Error);
+		goto Exit;
+	}
+
+	TileMap->map = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, TileMap->height * sizeof(void*));
+
+	if (TileMap->map == NULL) {
+		Error = ERROR_OUTOFMEMORY;
+		LogMessageA(LL_ERROR, "[%s] HeapAlloc() failed with 0x%08lx", __FUNCTION__, Error);
+		goto Exit;
+	}
+
+	for (uint16_t Counter = 0; Counter < TileMap->height; Counter++) {
+		TileMap->map[Counter] = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, TileMap->width * sizeof(void*));
+
+		if (TileMap->map[Counter] == NULL) {
+			Error = ERROR_OUTOFMEMORY;
+			LogMessageA(LL_ERROR, "[%s] HeapAlloc() failed with 0x%08lx", __FUNCTION__, Error);
+			goto Exit;
+		}
+	}
+
+
 
 Exit:
-	return Result;
+	if (FileHandle && (FileHandle != INVALID_HANDLE_VALUE)) {
+		CloseHandle(FileHandle);
+	}
+
+	if (FileBuffer) {
+		HeapFree(GetProcessHeap(), 0, FileBuffer);
+	}
+
+	return Error;
 }
