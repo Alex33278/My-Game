@@ -2,6 +2,16 @@
 #define SSE2
 #define AVX
 
+#pragma warning(disable: 4820) // Padding
+#pragma warning(disable: 5045) // Qspectre
+#pragma warning(disable: 4191) // unsafe conversion from "FARPROC" to "_NtQueryTimerResolution"
+#pragma warning(disable: 4018) // signed/unsigned mismatch for < operator
+#pragma warning(disable: 4061) // Not explicitly handled by a case label
+#pragma warning(disable: 4133) // incompadible types (Pixel32 -> __m256i)
+#pragma warning(disable: 4668) // Win32 stuff
+#pragma warning(disable: 4711) // Auto inline
+#pragma warning(disable: 4710) // Not inline
+
 #pragma warning(push, 3)
 #include <Windows.h>
 #include <xaudio2.h>
@@ -20,6 +30,8 @@
 #endif
 #pragma warning(pop)
 
+#include "Tiles.h"
+
 #ifdef _DEBUG
 #define ASSERT(Expression, Message) if (!(Expression)) { *(int*)0 = 0; }
 #else
@@ -27,8 +39,13 @@
 #endif
 
 #define GAME_NAME "A Unlikely Hero"
+#ifdef _DEBUG
 #define GAME_VER "DEV"
+#else
+#define GAME_VER "ALPHA 1.0"
+#endif
 #define GAME_STUDIO "Alex Games"
+#define ASSET_FILE "Assets.dat"
 #define GAME_RES_WIDTH 384
 #define GAME_RES_HEIGHT 240
 #define GAME_BPP 32
@@ -56,6 +73,10 @@
 #define FACING_UPWARD_1	10
 #define FACING_UPWARD_2	11
 
+#define FONT_SHEET_CHARACTERS_PER_ROW 98
+#define LOG_FILE_NAME GAME_NAME " Log.log"
+#define NUMBER_SFX_SOURCE_VOICES 4
+
 typedef enum DIRECTION {
 	DIR_DOWN = 0,
 	DIR_LEFT = 3,
@@ -63,17 +84,16 @@ typedef enum DIRECTION {
 	DIR_UP = 9
 } DIRECTION;
 
-#define FONT_SHEET_CHARACTERS_PER_ROW 98
 
 typedef enum LOG_LEVEL {
-	LL_NONE = 0,
-	LL_INFO = 3,
-	LL_WARNING = 2,
-	LL_ERROR = 1,
-	LL_DEBUG = 4
+	LL_ALWAYS = 0,
+	LL_NONE = 1,
+	LL_INFO = 4,
+	LL_WARNING = 3,
+	LL_ERROR = 2,
+	LL_DEBUG = 5
 } LOG_LEVEL;
 
-#define LOG_FILE_NAME GAME_NAME " Log.log"
 
 typedef enum GAME_STATE {
 	GAMESTATE_OPENING_SPLASH_SCREEN,
@@ -86,19 +106,12 @@ typedef enum GAME_STATE {
 	GAMESTATE_CHARACTER_NAMING
 } GAME_STATE;
 
-#define NUMBER_SFX_SOURCE_VOICES 4
-
-#pragma warning(disable: 4820) // Padding
-#pragma warning(disable: 5045) // Qspectre
-#pragma warning(disable: 4191) // unsafe conversion from "FARPROC" to "_NtQueryTimerResolution"
-#pragma warning(disable: 4018) // signed/unsigned mismatch for < operator
-#pragma warning(disable: 4061) // Not explicitly handled by a case label
-#pragma warning(disable: 6326) // Comparison of constant with constant
-#pragma warning(disable: 6340) // sprintf_s require some signed type
-#pragma warning(disable: 4133) // incompadible types (Pixel32 -> __m256i)
-
-typedef LONG(NTAPI* _NtQueryTimerResolution) (OUT PULONG MinimumResolution, OUT PULONG MaximumResolution, OUT PULONG CurrentResolution);
-_NtQueryTimerResolution NtQueryTimerResolution;
+typedef enum RESOURCE_TYPE {
+	RESOURCE_TYPE_WAV,
+	RESOURCE_TYPE_OGG,
+	RESOURCE_TYPE_TILEMAP,
+	RESOURCE_TYPE_BMPX
+} RESOURCE_TYPE;
 
 typedef struct GAME_BITMAP {
 	BITMAPINFO bitmapInfo;
@@ -174,6 +187,7 @@ typedef struct HERO {
 	GAME_BITMAP Sprite[3][12];
 	BOOL Active;
 	UPOINT ScreenPos;
+	UPOINT WorldPos;
 	uint8_t MovementRemaining;
 	DIRECTION Direction;
 	uint8_t CurrentArmor;
@@ -240,34 +254,64 @@ GAME_BITMAP g6x7Font;
 GAME_SOUND gSound_SplashScreen;
 GAME_SOUND gSound_MenuNavigate;
 GAME_SOUND gSound_MenuChoose;
+GAME_SOUND gMusic_Overworld01;
 HERO gPlayer;
 int8_t gGamepadID;
 HWND gWHandle;
 IXAudio2SourceVoice* gXAudioMusicSourceVoice;
 IXAudio2SourceVoice* gXAudioSFXSourceVoice[NUMBER_SFX_SOURCE_VOICES];
+typedef LONG(NTAPI* _NtQueryTimerResolution) (OUT PULONG MinimumResolution, OUT PULONG MaximumResolution, OUT PULONG CurrentResolution);
+_NtQueryTimerResolution NtQueryTimerResolution;
 GAMEMAP gOverworld01;
-//GAME_BITMAP gOverworld01;
+uint8_t gPassableTiles[16];
+//uint8_t gPassableTiles[100];
+// GAME_BITMAP gOverworld01;
+UPOINT gCamera;
+HANDLE gAssetLoadingThread;
+HANDLE gSplashScreenLoadedEvent;
+BOOL gGameRunning;
 
 float gSFXVolume;
 float gMusicVolume;
 
+// Gamepad
 void FindFirstConnectedGamepad(void);
 
+// Load asset from file
 DWORD Load32BppBitmapFromFile(_In_ char* Filename, _Inout_ GAME_BITMAP* GameBitmap);
 DWORD LoadWavFromFile(_In_ char* Filename, _Inout_ GAME_SOUND* GameSound);
+DWORD LoadOggFromFile(_In_ char* Filename, _Inout_ GAME_SOUND* GameSound);
+DWORD LoadTilemapFromFile(_In_ char* FileName, _Inout_ TILEMAP* TileMap);
+DWORD LoadAssetFromArchive(_In_ char* ArchiveName, _In_ char* Filename, _In_ RESOURCE_TYPE ResourceType, _Inout_ void* Resource);
+
+// Load asset from memory
+DWORD Load32BppBitmapFromMemory(_In_ void* Buffer, _Inout_ GAME_BITMAP* GameBitmap);
+DWORD LoadWavFromMemory(_In_ void* Buffer, _Inout_ GAME_SOUND* GameSound);
+DWORD LoadOggFromMemory(_In_ void* Buffer, _In_ uint32_t BufferSize, _Inout_ GAME_SOUND* GameSound);
+DWORD LoadTilemapFromMemory(_In_ void* Buffer, _In_ uint32_t BufferSize, _Inout_ TILEMAP* TileMap);
+
+// Blit to buffer
 void Blit32BppBitmapToBuffer(_In_ GAME_BITMAP* GameBitmap, _In_ uint16_t x, _In_ uint16_t y);
 void BlitStringToBuffer(_In_ char* String, _In_ GAME_BITMAP* FontSheet, _In_ PIXEL32* Color, _In_ uint16_t x, _In_ uint16_t y);
 void BlitTilemapToBuffer(_In_ GAME_BITMAP* GameBitmap);
-void PlaySound2(_In_ GAME_SOUND* GameSound);
 
+// Audio
+void PlaySoundSfx(_In_ GAME_SOUND* GameSound);
+void PlaySoundMusic(_In_ GAME_SOUND* GameSound);
+
+// Registry
 DWORD LoadRegistryParams(void);
 DWORD SaveRegistryParams(void);
 
+// Log
 void LogMessageA(_In_ LOG_LEVEL LogLevel, _In_ char* Message, _In_ ...);
 
+// Render
 void RenderFrameGraphic(void);
-//---
 void DrawDebugInfo(void);
+
+// Threads
+DWORD WINAPI AssetLoadingThreadProc(_In_ LPVOID lpParam);
 
 #ifdef AVX
 	void ClearScreen(_In_ __m256i* Color);
@@ -276,5 +320,3 @@ void DrawDebugInfo(void);
 #else
 	void ClearScreen(_In_ PIXEL32* Pixel);
 #endif
-
-DWORD LoadTilemapFromFile(_In_ char* FileName, _Inout_ TILEMAP* TileMap);

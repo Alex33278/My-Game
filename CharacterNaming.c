@@ -74,20 +74,20 @@ void PPI_CharacterNaming(void) {
 			gMenu_CharacterNaming.SelectedItem = BACK_BUTTON;
 		}
 
-		PlaySound2(&gSound_MenuNavigate);
+		PlaySoundSfx(&gSound_MenuNavigate);
 	}
 
 	if (gPlayerInput.DownKeyDown && !gPlayerInput.DownKeyWasDown) {
 		if (gMenu_CharacterNaming.SelectedItem < 41) {
 			gMenu_CharacterNaming.SelectedItem += 13;
 
-			PlaySound2(&gSound_MenuNavigate);
+			PlaySoundSfx(&gSound_MenuNavigate);
 		}
 		else {
 			if (gMenu_CharacterNaming.SelectedItem >= 39) {
 				gMenu_CharacterNaming.SelectedItem = BACK_BUTTON;
 
-				PlaySound2(&gSound_MenuNavigate);
+				PlaySoundSfx(&gSound_MenuNavigate);
 			}
 		}
 	}
@@ -100,7 +100,7 @@ void PPI_CharacterNaming(void) {
 				gMenu_CharacterNaming.SelectedItem + 13 :
 				gMenu_CharacterNaming.SelectedItem);
 
-			PlaySound2(&gSound_MenuNavigate);
+			PlaySoundSfx(&gSound_MenuNavigate);
 		}
 	}
 
@@ -112,7 +112,7 @@ void PPI_CharacterNaming(void) {
 				gMenu_CharacterNaming.SelectedItem - 13 :
 				gMenu_CharacterNaming.SelectedItem);
 
-			PlaySound2(&gSound_MenuNavigate);
+			PlaySoundSfx(&gSound_MenuNavigate);
 		}
 		else {
 			if (gMenu_CharacterNaming.SelectedItem < OK_BUTTON) {
@@ -182,7 +182,7 @@ void DrawCharacterNaming(void) {
 void MenuItem_CharacterNaming_Add(void) {
 	if (strlen(gPlayer.Name) < 8) {
 		gPlayer.Name[strlen(gPlayer.Name)] = gMenu_CharacterNaming.Items[gMenu_CharacterNaming.SelectedItem]->Name[0];
-		PlaySound2(&gSound_MenuChoose);
+		PlaySoundSfx(&gSound_MenuChoose);
 	}
 }
 
@@ -195,7 +195,7 @@ void MenuItem_CharacterNaming_Back(void) {
 		gPlayer.Name[strlen(gPlayer.Name) - 1] = '\0';
 	}
 
-	PlaySound2(&gSound_MenuChoose);
+	PlaySoundSfx(&gSound_MenuChoose);
 }
 
 void MenuItem_CharacterNaming_Ok(void) {
@@ -203,6 +203,6 @@ void MenuItem_CharacterNaming_Ok(void) {
 		gPreviousGameState = gCurrentGameState;
 		gCurrentGameState = GAMESTATE_OVERWORLD;
 		gPlayer.Active = TRUE;
-		PlaySound2(&gSound_MenuChoose);
+		PlaySoundSfx(&gSound_MenuChoose);
 	}
 }

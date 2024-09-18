@@ -2,7 +2,7 @@
 #include "TitleScreen.h"
 
 MENU_ITEM gMI_ResumeGame = { "Resume", CALCXPOS(6), 100, FALSE, MenuItem_TitleScreen_Resume };
-MENU_ITEM gMI_StartNewGame = { "Start New Game", CALCXPOS(14), 115, TRUE, MenuItem_TitleScreen_StartNewGame };
+MENU_ITEM gMI_StartNewGame = { "New Game", CALCXPOS(8), 115, TRUE, MenuItem_TitleScreen_StartNewGame };
 MENU_ITEM gMI_Options = { "Options", CALCXPOS(7), 130, TRUE, MenuItem_TitleScreen_Options };
 MENU_ITEM gMI_Exit = { "Exit", CALCXPOS(4), 145, TRUE, MenuItem_TitleScreen_Exit };
 MENU_ITEM* gMI_TitleScreenItems[] = { &gMI_ResumeGame, &gMI_StartNewGame, &gMI_Options, &gMI_Exit };
@@ -13,20 +13,20 @@ void PPI_TitleScreen(void) {
 		if (gMenu_TitleScreen.SelectedItem < gMenu_TitleScreen.NumMenuItems - 1) {
 			gMenu_TitleScreen.SelectedItem++;
 
-			PlaySound2(&gSound_MenuNavigate);
+			PlaySoundSfx(&gSound_MenuNavigate);
 		}
 	}
 
 	if (gPlayerInput.UpKeyDown && !gPlayerInput.UpKeyWasDown) {
 		if (gMenu_TitleScreen.SelectedItem > (gPlayer.Active == TRUE ? 0 : 1)) {
 			gMenu_TitleScreen.SelectedItem--;
-			PlaySound2(&gSound_MenuNavigate);
+			PlaySoundSfx(&gSound_MenuNavigate);
 		}
 	}
 
 	if (gPlayerInput.ChooseKeyDown && !gPlayerInput.ChooseKeyWasDown) {
 		gMenu_TitleScreen.Items[gMenu_TitleScreen.SelectedItem]->Action();
-		PlaySound2(&gSound_MenuChoose);
+		PlaySoundSfx(&gSound_MenuChoose);
 	}
 }
 

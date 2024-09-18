@@ -13,20 +13,20 @@ void PPI_OptionsScreen(void) {
 		if (gMenu_OptionsScreen.SelectedItem < gMenu_OptionsScreen.NumMenuItems - 1) {
 			gMenu_OptionsScreen.SelectedItem++;
 
-			PlaySound2(&gSound_MenuNavigate);
+			PlaySoundSfx(&gSound_MenuNavigate);
 		}
 	}
 
 	if (gPlayerInput.UpKeyDown && !gPlayerInput.UpKeyWasDown) {
 		if (gMenu_OptionsScreen.SelectedItem > 0) {
 			gMenu_OptionsScreen.SelectedItem--;
-			PlaySound2(&gSound_MenuNavigate);
+			PlaySoundSfx(&gSound_MenuNavigate);
 		}
 	}
 
 	if (gPlayerInput.ChooseKeyDown && !gPlayerInput.ChooseKeyWasDown) {
 		gMenu_OptionsScreen.Items[gMenu_OptionsScreen.SelectedItem]->Action();
-		PlaySound2(&gSound_MenuChoose);
+		PlaySoundSfx(&gSound_MenuChoose);
 	}
 }
 

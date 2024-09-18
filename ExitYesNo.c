@@ -11,20 +11,20 @@ void PPI_ExitYesNo(void) {
 		if (gMenu_Exit_YesNo.SelectedItem < gMenu_Exit_YesNo.NumMenuItems - 1) {
 			gMenu_Exit_YesNo.SelectedItem++;
 
-			PlaySound2(&gSound_MenuNavigate);
+			PlaySoundSfx(&gSound_MenuNavigate);
 		}
 	}
 
 	if (gPlayerInput.UpKeyDown && !gPlayerInput.UpKeyWasDown) {
 		if (gMenu_Exit_YesNo.SelectedItem > 0) {
 			gMenu_Exit_YesNo.SelectedItem--;
-			PlaySound2(&gSound_MenuNavigate);
+			PlaySoundSfx(&gSound_MenuNavigate);
 		}
 	}
 
 	if (gPlayerInput.ChooseKeyDown && !gPlayerInput.ChooseKeyWasDown) {
 		gMenu_Exit_YesNo.Items[gMenu_Exit_YesNo.SelectedItem]->Action();
-		PlaySound2(&gSound_MenuChoose);
+		PlaySoundSfx(&gSound_MenuChoose);
 	}
 }
 
